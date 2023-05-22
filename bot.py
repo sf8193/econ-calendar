@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 import discord
@@ -11,10 +11,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-time = datetime.time(hour=9)
+looping_time = time(hour=9)
 
 # @tasks.loop(seconds=5.0)
-@tasks.loop(time=time)
+@tasks.loop(time=looping_time)
 async def send_cal():
     message_channel = client.get_channel(int(os.getenv('TARGET_CHANNEL')))
     print(f"Got channel {message_channel}")
