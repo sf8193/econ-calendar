@@ -43,15 +43,13 @@ async def on_message(message):
             await message.channel.send('result over 2000 chars')
         await message.channel.send(res)
 
-async def get_calendar_data(): 
-    df = investpy.news.economic_calendar(time_zone=None, time_filter='time_only', countries=['United States'], importances=None, categories=None, from_date=datetime.today().strftime('%d/%m/%Y'), to_date=(datetime.today() + timedelta(1)).strftime('%d/%m/%Y'))
+async def get_calendar_data():
+    df = investpy.news.economic_calendar(time_zone="GMT -4:00", time_filter='time_only', countries=['United States'], importances=None, categories=None)
 
-    df = df.drop(['id','zone','date', 'importance', 'currency', 'actual', 'forecast', 'previous'], axis=1)
-    csv = df.to_csv(header=False, index=False)
+    df = df.drop(['id','zone','date', 'importance', 'currency', 'actual'], axis=1)
+    csv = df.to_csv(index=False, na_rep='None')
     res = csv.replace(',', ' | ')
+    res = res.replace('| None | None', ' ')
     return res
 
 client.run(os.getenv("CLIENT_TOKEN"))
-
-
-
