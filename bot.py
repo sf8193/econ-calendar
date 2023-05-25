@@ -57,6 +57,8 @@ async def on_message(message):
     elif message.content.startswith('$tomorrow'):
         res = await get_calendar_data(False)
         await message.channel.send(file=discord.File('res.png'))
+    elif message.content.startswith('$'):
+        await message.channel.send(f'hello {message.author.mention}! pls fuck off')
 
 
 async def get_calendar_data(today=True):
