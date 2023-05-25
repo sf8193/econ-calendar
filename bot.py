@@ -1,4 +1,4 @@
-from datetime import from datetime import datetime, timedelta, time, timezone
+from datetime import datetime, timedelta, time, timezone
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 import discord
@@ -59,99 +59,95 @@ async def on_message(message):
         await message.channel.send(file=discord.File('res.png'))
 
 
-async def get_calendar_data(today = True):
-    if (today):
+async def get_calendar_data(today=True):
+    if today:
         df = investpy.news.economic_calendar(time_zone="GMT -4:00", time_filter='time_only', countries=['United States'], importances=None, categories=None)
     else:
-        
         tom = (datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(1)).strftime('%d/%m/%Y')
-        day_after_tom=(datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(2)).strftime('%d/%m/%Y')
-        df = investpy.news.economic_calendar(time_zone=None, time_filter='time_only', countries=['United States'], importances=None, categories=None,from_date=tom, to_date=day_after_tom)
+        day_after_tom = (datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(2)).strftime('%d/%m/%Y')
+        df = investpy.news.economic_calendar(time_zone=None, time_filter='time_only', countries=['United States'], importances=None, categories=None, from_date=tom, to_date=day_after_tom)
         df['date'] = pd.to_datetime(df['date'], dayfirst=True)
         df = df[df['date'] != pd.to_datetime((datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(2)).strftime('%Y-%m-%d'))]
 
-    df = df.drop(['id','zone','date', 'currency'], axis=1)
-    new_cols = ["time","importance","forecast","previous","actual","event"]
+    df = df.drop(['id', 'zone', 'date', 'currency'], axis=1)
+    new_cols = ["time", "importance", "forecast", "previous", "actual", "event"]
     df = df.reindex(columns=new_cols)
     csv = df.to_csv(index=False, na_rep='')
-    res = csv.replace(',', ' | ')
-    res = res.replace('medium', 'med')
-    res = res.replace('importance', 'vol')
-    # Remove leading/trailing spaces in headers and data
-# Split the data into rows
-    rows = res.strip().split("\n")
 
-    # Split each row into columns
-    columns = [row.split("|") for row in rows]
+    # Split the CSV data by newlines
+    csv_lines = csv.strip().split('\n')
 
-    headers = columns[0]
-    data = columns[1:]  # Adjusted to start from the second row
+    # Create a CSV reader
+    reader = csvLib.reader(csv_lines)
 
-    # Remove leading/trailing spaces in headers and data
-    headers = [header.strip() for header in headers]
-    data = [[item.strip() for item in row] for row in data]
+    # Get the headers from the first row
+    headers = next(reader)
 
-    # Ensure all rows have the same number of columns
-    max_columns = max(len(row) for row in data)
-    data = [row + [''] * (max_columns - len(row)) for row in data]
+    # Iterate over each row
+    rows = []
+    for row in reader:
+        rows.append(row)
 
-# Convert data into separate lists for each column
-    time = [row[0] for row in data]
-    vol = [row[1] for row in data]
-    forecast = [row[2] for row in data]
-    previous = [row[3] for row in data]
-    actual = [row[4] for row in data]
-    event = [row[5] for row in data]
+    # Convert data into separate lists for each column
+    time = [row[0] for row in rows]
+    importance = [row[1] for row in rows]
+    forecast = [row[2] for row in rows]
+    previous = [row[3] for row in rows]
+    actual = [row[4] for row in rows]
+    event = [row[5] for row in rows]
 
-# Create the plot
-    cellText = np.array([time, vol, event, previous, forecast, actual ]).T.tolist()
-    # Get the index of the "vol" column
-    vol_index = headers.index("vol")
+    # Create the plot
+    cellText = np.array([time, importance, event, previous, forecast, actual]).T.tolist()
 
-# Remove the "vol" column from cellText
-    cellText = [row[:vol_index] + row[vol_index + 1:] for row in cellText]
+    # Get the index of the "importance" column
+    importance_index = headers.index("importance")
 
-# Remove the "vol" header from headers
-    headers.pop(vol_index)
+    # Remove the "importance" column from cellText
+    cellText = [row[:importance_index] + row[importance_index + 1:] for row in cellText]
+
+    # Remove the "importance" header from headers
+    headers.pop(importance_index)
+
     fig, ax = plt.subplots(figsize=(18, 12))
     ax.axis('off')  # Turn off the axes
-    
+
     table = ax.table(
-       cellText=cellText,
-       colLabels=['Time', 'Event', 'Previous','Forecast', 'Actual'],
-       colWidths=[1.5,1.5,3,3,3,8],
-       cellLoc='center',
-       loc='center',
-       bbox=[0, 0, 1, 1]
+        cellText=cellText,
+        colLabels=['Time', 'Event', 'Previous', 'Forecast', 'Actual'],
+        colWidths=[1.5, 1.5, 3, 3, 3, 8],
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
     )
+
     # Adjust the width of the "events" column
     table.set_fontsize(20)
-
     table.auto_set_column_width(col=list(range(len(headers))))
-    
-# Adjust the width of the "time" column
-    color_map = {    
-    'high': cm.Reds(0.5),   # Light blue
-    'med': cm.Reds(0.25),    # Medium blue
-    'low': cm.Reds(0.1),    # Dark blue
+
+    # Adjust the width of the "time" column
+    color_map = {
+        'high': cm.Reds(0.5),   # Light blue
+        'medium': cm.Reds(0.25),    # Medium blue
+        'low': cm.Reds(0.1),    # Dark blue
     }
 
-    for row in range(len(vol)):
-        vol_value = vol[row].lower()
-        color = color_map.get(vol_value)
+    for row in range(len(importance)):
+        importance_value = importance[row].lower()
+        color = color_map.get(importance_value)
         if color:
             for col in range(len(headers)):
-                cell = table[row+1, col]
+                cell = table[row + 1, col]
                 cell.set_facecolor(color)
 
     table.scale(1.5, 1.5)  # Adjust the scale factor as needed
     for col in range(len(headers)):
         header_cell = table[0, col]
         header_cell.set_text_props(weight='bold')
-    
-# Save the image
+
+    # Save the image
     plt.savefig('res.png', bbox_inches='tight', dpi=300)
     plt.close()
-    return res
+
+    return 'res.png'
 
 client.run(os.getenv("CLIENT_TOKEN"))
