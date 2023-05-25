@@ -144,6 +144,9 @@ async def get_calendar_data(today=True):
         header_cell = table[0, col]
         header_cell.set_text_props(weight='bold')
 
+    for i in range(len(importance)):
+        table[i+1, 1]._loc = 'left'
+        table[i+1, 1]._text.set_horizontalalignment('left') 
     # Save the image
     plt.savefig('res.png', bbox_inches='tight', dpi=300)
     plt.close()
