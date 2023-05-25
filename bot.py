@@ -1,14 +1,15 @@
-from datetime import datetime, timedelta, time
+from datetime import from datetime import datetime, timedelta, time, timezone
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 import discord
 import investpy
 import os
-import io
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
-
+import pandas as pd
+import re
+import csv as csvLib
 
 load_dotenv()
 
@@ -17,6 +18,13 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 looping_time = time(hour=9)
+
+bot = commands.Bot(command_prefix='$', intents=intents)
+
+@bot.command(name='list')
+async def test(ctx):
+    print('made it')
+    pass
 
 #@tasks.loop(seconds=5.0)
 @tasks.loop(time=looping_time)
@@ -45,14 +53,22 @@ async def on_message(message):
 
     if message.content.startswith('$today'):
         res = await get_calendar_data()
-        if (len(res)) >= 2000:
-            await message.channel.send('result over 2000 chars')
         await message.channel.send(file=discord.File('res.png'))
     elif message.content.startswith('$tomorrow'):
-        await message.channel.send('maybe later')
+        res = await get_calendar_data(False)
+        await message.channel.send(file=discord.File('res.png'))
 
-async def get_calendar_data():
-    df = investpy.news.economic_calendar(time_zone="GMT -4:00", time_filter='time_only', countries=['United States'], importances=None, categories=None)
+
+async def get_calendar_data(today = True):
+    if (today):
+        df = investpy.news.economic_calendar(time_zone="GMT -4:00", time_filter='time_only', countries=['United States'], importances=None, categories=None)
+    else:
+        
+        tom = (datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(1)).strftime('%d/%m/%Y')
+        day_after_tom=(datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(2)).strftime('%d/%m/%Y')
+        df = investpy.news.economic_calendar(time_zone=None, time_filter='time_only', countries=['United States'], importances=None, categories=None,from_date=tom, to_date=day_after_tom)
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True)
+        df = df[df['date'] != pd.to_datetime((datetime.now(timezone(timedelta(hours=-5), 'EST')) + timedelta(2)).strftime('%Y-%m-%d'))]
 
     df = df.drop(['id','zone','date', 'currency'], axis=1)
     new_cols = ["time","importance","forecast","previous","actual","event"]
