@@ -115,7 +115,7 @@ async def get_calendar_data(today=True):
 
     table = ax.table(
         cellText=cellText,
-        colLabels=['Time', 'Event', 'Previous', 'Forecast', 'Actual'],
+        colLabels=['Time',f"Event ({datetime.now().strftime('%Y-%m-%d')})", 'Previous', 'Forecast', 'Actual'],
         colWidths=[1.5, 1.5, 3, 3, 3, 8],
         cellLoc='center',
         loc='center',
