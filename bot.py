@@ -16,16 +16,44 @@ load_dotenv()
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+tree = discord.app_commands.CommandTree(client)
+
+high_importance_events = set()
+
+@tree.command(name = "today", description = "get todays events", guild=discord.Object(929186393253634058))
+async def get_today_calendar(interaction):
+    await interaction.response.defer()
+    res = await get_calendar_data()
+    await interaction.followup.send(file=discord.File('res.png'))
+    return
+ 
+
+@tree.command(name = "tomorrow", description = "get tomorrows events",  guild=discord.Object(929186393253634058))
+async def get_tomorrows_calendar(interaction):
+    await interaction.response.defer()
+    res = await get_calendar_data(False)
+    await interaction.response.send_message(file=discord.File('res.png'))
+    return
+
+@tasks.loop(minutes=15)
+async def get_high_vol_and_send():
+    if (len(high_importance_events) == 0):
+        print('no high vol events left today')
+    else:
+        print(high_importance_events)
+        for event in high_importance_events:
+            if (event[0] <= datetime.now().time()):
+                print('entered push for news event')
+                print(high_importance_events)
+                high_importance_events.remove(event)
+                print('popped time')
+                print(high_importance_events)
+                await get_calendar_data()
+                await message_channel.send(file=discord.File('res.png'))
+                break
+    return
 
 looping_time = time(hour=9)
-
-bot = commands.Bot(command_prefix='$', intents=intents)
-
-@bot.command(name='list')
-async def test(ctx):
-    print('made it')
-    pass
-
 #@tasks.loop(seconds=5.0)
 @tasks.loop(time=looping_time)
 async def send_cal():
@@ -44,7 +72,9 @@ async def before():
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
+    await tree.sync( guild=discord.Object(929186393253634058))
     send_cal.start()
+    get_high_vol_and_send.start()
 
 @client.event
 async def on_message(message):
@@ -54,11 +84,10 @@ async def on_message(message):
     if message.content.startswith('$today'):
         res = await get_calendar_data()
         await message.channel.send(file=discord.File('res.png'))
+
     elif message.content.startswith('$tomorrow'):
         res = await get_calendar_data(False)
         await message.channel.send(file=discord.File('res.png'))
-    elif message.content.startswith('$'):
-        await message.channel.send(f'hello {message.author.mention}! pls fuck off')
 
 
 async def get_calendar_data(today=True):
@@ -100,7 +129,13 @@ async def get_calendar_data(today=True):
 
     # Create the plot
     cellText = np.array([time, importance, event, previous, forecast, actual]).T.tolist()
-
+    
+    if today==True:
+        for row in cellText:
+            if row[1].lower() == 'high' and row[5]=='' and row[3]!= '':
+                event_time = datetime.strptime(row[0], '%H:%M').time()
+                high_importance_events.add((event_time,row[1]))
+            
     # Get the index of the "importance" column
     importance_index = headers.index("importance")
 
@@ -115,7 +150,7 @@ async def get_calendar_data(today=True):
 
     table = ax.table(
         cellText=cellText,
-        colLabels=['Time',f"Event ({datetime.now().strftime('%Y-%m-%d')})", 'Previous', 'Forecast', 'Actual'],
+        colLabels=['Time',f"Event ({datetime.now().strftime('%d-%m-%Y')})", 'Previous', 'Forecast', 'Actual'],
         colWidths=[1.5, 1.5, 3, 3, 3, 8],
         cellLoc='center',
         loc='center',
